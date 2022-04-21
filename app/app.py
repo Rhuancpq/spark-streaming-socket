@@ -19,7 +19,7 @@ sc = SparkContext(conf=conf)
 
 ssc = StreamingContext(sc, 1)
 
-ssc.checkpoint("checkpoint")
+ssc.checkpoint("hdfs://hadoop:9000/checkpoint")
 
 state_rdd = sc.emptyRDD()
 

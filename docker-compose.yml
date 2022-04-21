@@ -52,3 +52,5 @@ services:
       - ./data_app:/app
     ports:
       - '9999:9999'
+  hadoop:
+    image: cybermaggedon/hadoop
