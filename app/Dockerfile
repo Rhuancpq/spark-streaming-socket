@@ -9,6 +9,6 @@ RUN pip3 install -r requirements.txt
 
 COPY . ./
 
-ENTRYPOINT [ "python3", "./app.py" ]
+ENTRYPOINT [ "python3", "-u", "./app.py" ]
 
 # ENTRYPOINT ["tail", "-F", "/dev/null"]
