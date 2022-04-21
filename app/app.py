@@ -1,6 +1,6 @@
 from pyspark import SparkContext, SparkConf
-from pyspark.streaming import StreamingContext
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import explode, split, lower
 
 
 conf = (
@@ -15,25 +15,30 @@ conf = (
 
 sc = SparkContext(conf=conf)
 
-ssc = StreamingContext(sc, 1)
-
 spark = SparkSession(sc)
 
-# Create a empty DataFrame
-df = spark.createDataFrame([], "words STRING, count INT")
+# Create DataFrame representing the stream of input lines from connection to host:port
+lines = (
+    spark.readStream.format("socket")
+    .option("host", "data_app")
+    .option("port", 9999)
+    .load()
+)
 
-lines = ssc.socketTextStream("data_app", 9999)
 
-words = lines.flatMap(lambda line: line.split(" "))
+# Split the lines into words
+words = lines.select(
+    # explode turns each item in an array into a separate row
+    explode(split(lines.value, " ")).alias("word")
+)
 
-pairs = words.map(lambda word: (word.lower(), 1))
-wordCounts = pairs.reduceByKey(lambda x, y: x + y)
+# lower case the words
+words = words.withColumn("word", lower(words.word.cast("string")))
 
-# TODO merge the new data with the old one, sum up counts of the same words and save to dataframe
-wordCounts.foreachRDD()
+# Generate running word count
+wordCounts = words.groupBy("word").count().sort("count", ascending=False)
 
-# print the top 10 words
-df.orderBy("count", ascending=False).limit(10).show()
+# Start running the query that prints the running counts to the console
+query = wordCounts.writeStream.outputMode("complete").format("console").start()
 
-ssc.start()  # Start the computation
-ssc.awaitTermination()  # Wait for the computation to terminate
+query.awaitTermination()
