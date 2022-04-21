@@ -45,5 +45,10 @@ services:
       - spark
       - spark-worker-2
       - spark-worker-1
+  data_app:
+    build: 
+      context: ./data_app
+    volumes: 
+      - ./data_app:/app
     ports:
       - '9999:9999'
