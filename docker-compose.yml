@@ -40,11 +40,15 @@ services:
     build: 
       context: ./app
     volumes: 
-      - ./app:/app
+      - ./app:/opt/application/
     depends_on:
       - spark
       - spark-worker-2
       - spark-worker-1
+    environment:
+      - AWS_ACCESS_KEY_ID=root
+      - AWS_SECRET_ACCESS_KEY=passroot123
+    restart: on-failure
   data_app:
     build: 
       context: ./data_app
@@ -52,3 +56,18 @@ services:
       - ./data_app:/app
     ports:
       - '9999:9999'
+  object_storage:
+    image: bitnami/minio
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=root
+      - MINIO_ROOT_PASSWORD=passroot123
+      - BITNAMI_DEBUG=true
+      - MINIO_DEFAULT_BUCKETS=checkpoint:public
+
+volumes:
+  minio_data: {}

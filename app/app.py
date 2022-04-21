@@ -1,39 +1,44 @@
-from pyspark import SparkContext, SparkConf
+from pyspark import SparkContext, SparkConf, StorageLevel
 from pyspark.streaming import StreamingContext
-from pyspark.sql import SparkSession
 
+if __name__ == "__main__":
+    conf = (
+        SparkConf()
+        .setMaster("spark://spark:7077")
+        .setAppName("NetworkWordCount")
+        .set("spark.dynamicAllocation.enabled", "false")
+        .set("spark.shuffle.service.enabled", "false")
+        .set("spark.streaming.receiver.writeAheadLog.enable", "true")
+        .set("spark.streaming.driver.writeAheadLog.closeFileAfterWrite", "true")
+        .set("spark.streaming.receiver.writeAheadLog.closeFileAfterWrite", "true")
+        .set("spark.executor.memory", "512m")
+        .set("spark.executor.instances", "2")
+    )
 
-conf = (
-    SparkConf()
-    .setMaster("spark://spark:7077")
-    .setAppName("NetworkWordCount")
-    .set("spark.dynamicAllocation.enabled", "false")
-    .set("spark.shuffle.service.enabled", "false")
-    .set("spark.executor.memory", "512m")
-    .set("spark.executor.instances", "2")
-)
+    S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID", "")
+    S3_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
 
-sc = SparkContext(conf=conf)
+    sc = SparkContext(conf=conf)
 
-ssc = StreamingContext(sc, 1)
+    ssc = StreamingContext(sc, 1)
 
-spark = SparkSession(sc)
+    ssc.checkpoint("checkpoint")
 
-# Create a empty DataFrame
-df = spark.createDataFrame([], "words STRING, count INT")
+    state_rdd = sc.emptyRDD()
 
-lines = ssc.socketTextStream("data_app", 9999)
+    def updateFunc(new_values, last_sum):
+        return sum(new_values) + (last_sum or 0)
 
-words = lines.flatMap(lambda line: line.split(" "))
+    lines = ssc.socketTextStream("data_app", 9999)
 
-pairs = words.map(lambda word: (word.lower(), 1))
-wordCounts = pairs.reduceByKey(lambda x, y: x + y)
+    words = lines.flatMap(lambda line: line.split(" "))
 
-# TODO merge the new data with the old one, sum up counts of the same words and save to dataframe
-wordCounts.foreachRDD()
+    pairs = words.map(lambda word: (word.lower(), 1))
+    wordCounts = pairs.reduceByKey(lambda x, y: x + y)
 
-# print the top 10 words
-df.orderBy("count", ascending=False).limit(10).show()
+    running_counts = wordCounts.updateStateByKey(updateFunc, initialState=state_rdd)
 
-ssc.start()  # Start the computation
-ssc.awaitTermination()  # Wait for the computation to terminate
+    running_counts.pprint()
+
+    ssc.start()  # Start the computation
+    ssc.awaitTermination()  # Wait for the computation to terminate
