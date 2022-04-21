@@ -1,4 +1,3 @@
-from cProfile import run
 from pyspark import SparkContext, SparkConf
 from pyspark.streaming import StreamingContext
 
@@ -30,7 +29,7 @@ def updateFunc(new_values, last_sum):
 
 lines = ssc.socketTextStream("data_app", 9999)
 
-words = lines.flatMap(lambda line: line.split(" "))
+words = lines.flatMap(lambda line: line.split(" ")).filter(lambda word: word != "")
 
 pairs = words.map(lambda word: (word.lower(), 1))
 wordCounts = pairs.reduceByKey(lambda x, y: x + y)
