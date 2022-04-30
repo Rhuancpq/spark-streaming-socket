@@ -37,11 +37,13 @@ services:
     ports:
       - '8082:8081'
   app:
+    restart: always
     build: 
       context: ./app
     volumes: 
       - ./app:/app
     depends_on:
+      - hadoop
       - spark
       - spark-worker-2
       - spark-worker-1

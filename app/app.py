@@ -37,8 +37,10 @@ wordCounts = pairs.reduceByKey(lambda x, y: x + y)
 running = wordCounts.updateStateByKey(updateFunc, initialRDD=state_rdd)
 
 sorted = running.transform(lambda rdd: rdd.sortBy(lambda x: x[1], ascending=False))
+wordsLen = running.reduce(lambda x, y: ("Total number of words", x[1] + y[1]))
 
 sorted.pprint()
+wordsLen.pprint()
 
 ssc.start()  # Start the computation
 ssc.awaitTermination()  # Wait for the computation to terminate
